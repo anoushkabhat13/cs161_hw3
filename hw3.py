@@ -123,6 +123,8 @@ def cleanUpList(s_list):
     return clean
 
 
+
+
 # EXERCISE: Modify this function to return Ture
 # if and only if s (numpy array) is a goal state of a Sokoban game.
 # (no box is on a non-goal square)
@@ -131,7 +133,13 @@ def cleanUpList(s_list):
 # this function as the goal testing function, A* will never
 # terminate until the whole search space is exhausted.
 def goal_test(s):
-    raise NotImplementedError()
+    row = s.shape[0]
+    col = s.shape[1]
+    for i in range(row):
+        for j in range(col):
+            if (isBox(s[i, j])):
+                return False
+    return True
 
 
 # EXERCISE: Modify this function to return the list of
@@ -152,32 +160,215 @@ def goal_test(s):
 # into it to the objects found in the original. In this case, any change in the numpy array s1 will also affect
 # the original array s. Thus, you may need a deep copy (e.g, s1 = np.copy(s)) to construct an indepedent array.
 def next_states(s):
-    row, col = getKeeperPosition(s)
-    s_list = []
-    s1 = np.copy(s)
+    up = np.copy(s)
+    down = np.copy(s)
+    left = np.copy(s)
+    right = np.copy(s)
+    return cleanUpList([try_move(up, "u"), try_move(down, "d"),try_move(left, "l"),try_move(right, "r")])
 
-    # NOT IMPLEMENTED YET! YOU NEED TO FINISH THIS FUNCTION.
 
-    return cleanUpList(s_list)
+
+def getSquare(State,row, col):
+    row_len = State.shape[0]
+    col_len = State.shape[1]
+    if(row<0 or row>= row_len or col<0 or col>=col_len):
+        return wall
+    return State[row, col]
+
+def set_square(State, row, col, v):
+    State[row][col] = v   
+    
+def try_move(State,D):
+    k_pos = getKeeperPosition(State)
+    k_row = k_pos[0]
+    k_col = k_pos[1]
+    print(k_row,k_col)
+    
+    cur = blank
+    if State[k_row][k_col] == keeperstar:
+        cur = star
+
+    if D == "d":
+        mov1_row = k_row + 1
+        mov1_col = k_col
+        mov2_row = k_row + 2
+        mov2_col = k_col
+    
+    elif D == "u":
+        mov1_row = k_row - 1
+        mov1_col = k_col
+        mov2_row = k_row - 2
+        mov2_col = k_col
+
+    elif D == "l":
+        mov1_row = k_row 
+        mov1_col = k_col -1
+        mov2_row = k_row 
+        mov2_col = k_col -2
+
+    elif D == "r":
+        mov1_row = k_row 
+        mov1_col = k_col +1
+        mov2_row = k_row 
+        mov2_col = k_col +2
+
+    mov1 = getSquare(State, mov1_row, mov1_col)
+    mov2 = getSquare(State, mov2_row, mov2_col)
+       
+    if mov1 == wall: 
+        return None
+    elif mov1 == blank:
+        set_square(State, k_row, k_col, cur)
+        set_square(State, mov1_row, mov1_col, keeper)
+    elif mov1 == star:
+        set_square(State, k_row, k_col, cur)
+        set_square(State, mov1_row, mov1_col, keeperstar)    
+    elif mov1 == box:
+        if mov2 == blank: 
+            set_square(State, k_row, k_col, cur)
+            set_square(State, mov1_row, mov1_col, keeper)
+            set_square(State, mov2_row, mov2_col, box)
+        if mov2 == star:
+            set_square(State, k_row, k_col, cur)
+            set_square(State, mov1_row, mov1_col, keeper)
+            set_square(State, mov2_row, mov2_col, boxstar)    
+        if mov2 == wall: 
+            return None      
+    elif mov1 == boxstar:
+        if mov2 == blank:
+            set_square(State, k_row, k_col, cur)
+            set_square(State, mov1_row, mov1_col, keeperstar)
+            set_square(State, mov2_row, mov2_col, box)
+        if mov2 == star:
+            set_square(State, k_row, k_col, cur)
+            set_square(State, mov1_row, mov1_col, keeperstar)
+            set_square(State, mov2_row, mov2_col, boxstar)    
+        if mov2 == wall: 
+            return None  
+    
+    return State
+            
+
+        
+
+
+
 
 
 # EXERCISE: Modify this function to compute the trivial
 # admissible heuristic.
 def h0(s):
-    raise NotImplementedError()
+    return 0
 
 
 # EXERCISE: Modify this function to compute the
 # number of misplaced boxes in state s (numpy array).
 def h1(s):
-    raise NotImplementedError()
+    #basically just counted the number of boxes that are not on goal states by checking only for boxes and not boxstars
+    count = 0
+    row = s.shape[0]
+    col = s.shape[1]
+    for i in range(row):
+        for j in range(col):
+            if (isBox(s[i, j])):
+                count+=1
+    return count
+
+"""
+
+def h2(s):
+
+    goals = findAllGoals(s)
+    
+    count = 0
+    row = s.shape[0]
+    col = s.shape[1]
+    max_dist = row*col
+    for i in range(row):
+        for j in range(col):
+            if (isBox(s[i, j])):
+                count+=closestBox(i, j, goals, max_dist)
+    return count
+
+def findAllGoals(s):
+    output = []
+    row = s.shape[0]
+    col = s.shape[1]
+    for i in range(row):
+        for j in range(col):
+            if (isStar(s[i, j]) or isBoxstar(s[i,j]) or isKeeperstar(s[i,j])):
+                output.append((i,j))
+    return output
+
+
+def closestBox(i, j, goals, max_dist):
+    min_dist = max_dist
+    for k in goals:
+        min_dist = min(min_dist, manhattan_dist(i, j, k[0], k[1]))
+        if min_dist == 0 or 1:  # Early exit if adjacent box found
+                return min_dist
+    return min_dist
+
+   
+def manhattan_dist(ax, ay, bx, by):
+    return abs(ax-bx) + abs(ay-by)
+"""
+
+
+def h2(s):
+    goals = findAllGoals(s)
+    keepers = findAllKeepers(s)
+    count = 0
+    for i in range(s.shape[0]):
+        for j in range(s.shape[1]):
+            if isBox(s[i, j]):
+                closest_goal = closestGoal(i, j, goals)
+                count += manhattan_dist(i, j, closest_goal[0], closest_goal[1])
+                closest_keeper = closestKeeper(i,j,keepers)
+                count+= manhattan_dist(i, j, closest_keeper[0], closest_keeper[1])
+    return count
+
+def findAllKeepers(s):
+    return [(i, j) for i in range(s.shape[0]) for j in range(s.shape[1]) if isKeeper(s[i, j]) or isKeeperstar(s[i, j])]
+
+def findAllGoals(s):
+    return [(i, j) for i in range(s.shape[0]) for j in range(s.shape[1]) if isStar(s[i, j]) or isBoxstar(s[i, j]) or isKeeperstar(s[i, j])]
+
+def closestGoal(i, j, goals):
+    return min(goals, key=lambda goal: manhattan_dist(i, j, goal[0], goal[1]))
+
+def closestKeeper(i, j, keepers):
+    if not keepers:
+        return None  # or handle the case when there are no keepers
+    return min(keepers, key=lambda keeper: manhattan_dist(i, j, keeper[0], keeper[1]))
+
+
+def manhattan_dist(ax, ay, bx, by):
+    return abs(ax - bx) + abs(ay - by)
+
+P1 = [[1,0,0], [0,2,3], [1,0,4]]
+
+print(getKeeperPosition(np.array(P1)))
+print(goal_test(np.array(P1)))
+print(getSquare(np.array(P1),1,2))
+
+#up down left right works
+print(try_move(np.array(P1), "r"))
+print(next_states(np.array(P1)))
+print('h0')
+print(h0(np.array(P1)))
+print(h1(np.array(P1)))
+print(h2(np.array(P1)))
+
+
+# Define isGoal and isBox functions similarly to previous example
 
 
 # EXERCISE: 
 # This function will be tested in various hard examples.
 # Objective: make A* solve problems as fast as possible.
 # TODO: change the function name to hUID, where UID is your student ID
-def h123456789(s):
+def h605721982(s):
     raise NotImplementedError()
 
 
@@ -210,6 +401,11 @@ s1 = [[1, 1, 1, 1, 1, 1],
       [1, 0, 0, 0, 4, 1],
       [1, 1, 1, 1, 1, 1]]
 
+print(h0(np.array(s1)))
+print(h1(np.array(s1)))
+print(h2(np.array(s1)))
+
+
 # [110,10],
 s2 = [[1, 1, 1, 1, 1, 1, 1],
       [1, 0, 0, 0, 0, 0, 1],
@@ -218,6 +414,11 @@ s2 = [[1, 1, 1, 1, 1, 1, 1],
       [1, 3, 0, 0, 1, 0, 1],
       [1, 1, 1, 1, 1, 1, 1]]
 
+print(h0(np.array(s2)))
+print(h1(np.array(s2)))
+print(h2(np.array(s2)))
+
+
 # [211,12],
 s3 = [[1, 1, 1, 1, 1, 1, 1, 1, 1],
       [1, 0, 0, 0, 1, 0, 0, 0, 1],
@@ -225,6 +426,9 @@ s3 = [[1, 1, 1, 1, 1, 1, 1, 1, 1],
       [1, 0, 0, 0, 1, 0, 0, 0, 1],
       [1, 0, 0, 0, 1, 0, 0, 0, 1],
       [1, 1, 1, 1, 1, 1, 1, 1, 1]]
+print(h0(np.array(s3)))
+print(h1(np.array(s3)))
+print(h2(np.array(s3)))
 
 # [300,13],
 s4 = [[1, 1, 1, 1, 1, 1, 1],
@@ -251,6 +455,11 @@ s6 = [[1, 1, 1, 1, 1, 1, 1, 1],
       [1, 0, 0, 1, 0, 0, 4, 1],
       [1, 1, 1, 1, 1, 1, 1, 1]]
 
+print(h0(np.array(s6)))
+print(h1(np.array(s6)))
+print(h2(np.array(s6)))
+
+
 # [1738,50],
 s7 = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
       [0, 0, 1, 1, 1, 1, 0, 0, 0, 3],
@@ -259,6 +468,10 @@ s7 = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
       [0, 0, 1, 0, 0, 1, 0, 0, 1, 0],
       [0, 2, 1, 0, 0, 0, 0, 0, 1, 0],
       [0, 0, 1, 0, 0, 0, 0, 0, 1, 4]]
+
+print(h0(np.array(s7)))
+print(h1(np.array(s7)))
+print(h2(np.array(s7)))
 
 # [1763,22],
 s8 = [[1, 1, 1, 1, 1, 1],
@@ -448,10 +661,6 @@ def printlists(lists):
 
 
 if __name__ == "__main__":
-    sokoban(s1, h0)
+     sokoban(s10, h2)
+    
 
-    sokoban(s2, h0)
-
-    sokoban(s3, h0)
-
-    sokoban(s4, h0)
